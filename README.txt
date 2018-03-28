@@ -48,3 +48,11 @@ Go into Edit mode and from the "Add an Activity/Resource" popup, choose to add a
 * Specify the Video ID. To get this you will need to visit English Central and find the video you wish. The ID can be found in the URL for the activity on English Central.
 
 If you have questions please contact the developer, me, Justin Hunt at poodllsupport @ gmail. com
+
+Icons downloaded from https://www.flaticon.com/
+made by Picol [https://www.flaticon.com/authors/picol] 
+licensed by Creative Commons BY 3.0 [http://creativecommons.org/licenses/by/3.0/]
+ - https://www.flaticon.com/free-icon/video-document-add-button_14356
+ - https://www.flaticon.com/free-icon/remove-video_14333
+ - https://www.flaticon.com/free-icon/plus-badge_14312
+ - https://www.flaticon.com/free-icon/badge-minus_13641

@@ -15,22 +15,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-
 /**
- * Defines the version of englishcentral
- *
- * This code fragment is called by moodle_needs_upgrading() and
- * /admin/index.php
- *
  * @package    mod_englishcentral
- * @copyright  2014 Justin Hunt, 2018 Gordon Bateson
+ * @copyright  2018 Gordon Bateson
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+/** Include required files */
+require_once('../../config.php');
 
-$plugin->component = 'mod_englishcentral';
-$plugin->maturity  = MATURITY_STABLE;
-$plugin->requires  = 2015051100; // Moodle 2.9 (because we want to use AMD)
-$plugin->version   = 2018030959;
-$plugin->release   = '2018-03-09 (59)';
+// get expected input params
+// check we are logged in
+require_login();
+
+// initialize EC activity/auth objects
+$ec = \mod_englishcentral\activity::create();
+$auth = \mod_englishcentral\auth::create($ec);
+
+$PAGE->set_url('/mod/englishcentral/support.php');
+$PAGE->set_context($ec->context);
+$PAGE->set_pagelayout('course');
+
+// check we have suitable capability
+$ec->req('config', 'moodle/site');
+
+// initialize the renderer
+$renderer = $PAGE->get_renderer($ec->plugin);
+$renderer->attach_activity_and_auth($ec, $auth);
+
+echo $renderer->header($ec->get_string('view'));
+echo $renderer->show_support_form();
+echo $renderer->footer();

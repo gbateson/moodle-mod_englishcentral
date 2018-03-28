@@ -70,9 +70,11 @@ class activity {
         if ($context) {
             $this->context = $context;
         } else if ($cm) {
-            $this->context = context_module($cm->id);;
+            $this->context = \context_module::instance($cm->id);;
+        } else if ($course) {
+            $this->context = \context_course::instance($course->id);
         } else {
-            $this->context = context_course($this->course->id);
+            $this->context = \context_system::instance();
         }
 
         $this->time = time();
@@ -108,7 +110,7 @@ class activity {
      * @param stdclass $course a row from the course table
      * @return reader the new reader object
      */
-    static public function create($instance, $cm, $course, $context=null) {
+    static public function create($instance=null, $cm=null, $course=null, $context=null) {
         return new activity($instance, $cm, $course, $context);
     }
 
@@ -128,17 +130,45 @@ class activity {
     // URLs API
     ////////////////////////////////////////////////////////////////////////////////
 
-    public function get_view_url($escaped=null) {
-        return $this->url('view.php', $escaped);
+    public function get_report_url($escaped=null, $params=array()) {
+        return $this->url('report.php', $escaped, $params);
     }
 
-    public function get_viewajax_url($escaped=null) {
-        return $this->url('view.ajax.php', $escaped);
+    public function get_view_url($escaped=null, $params=array()) {
+        return $this->url('view.php', $escaped, $params);
+    }
+
+    public function get_viewajax_url($escaped=null, $params=array()) {
+        return $this->url('view.ajax.php', $escaped, $params);
+    }
+
+    public function get_videoinfo_url($escaped=null) {
+        $lang = substr(current_language(), 0, 2);
+        switch ($lang) {
+            case 'en': // English
+                return 'https://www.englishcentral.com/videodetails';
+            case 'ar': // Arabic
+            case 'es': // Spanish
+            case 'he': // Hebrew
+            case 'ja': // Japanese
+            case 'pt': // Portuguese
+            case 'ru': // Russian
+            case 'tr': // Turkish
+            case 'vi': // Vietnamese
+                return "https://$lang.englishcentral.com/videodetails";
+            case 'zh': // Chinese
+                return 'https://www.englishcentralchina.com/videodetails';
+            default:
+                'https://www.englishcentral.com/videodetails?setLanguage='.$lang;
+        }
     }
 
     public function url($filepath, $escaped=null, $params=array()) {
+        if (isset($this->cm)) {
+            $params['id'] = $this->cm->id;
+        }
         $url = '/'.$this->plugintype.'/'.$this->pluginname.'/'.$filepath;
-        $url = new \moodle_url($filepath, $params);
+        $url = new \moodle_url($url, $params);
         if (is_bool($escaped)) {
             $url = $url->out($escaped);
         }
@@ -273,7 +303,7 @@ class activity {
 
     public function get_videoids() {
         global $DB;
-        return $DB->get_records_menu('englishcentral_videos', array('ecid' => $this->id), 'id', 'id,videoid');
+        return $DB->get_records_menu('englishcentral_videos', array('ecid' => $this->id), 'sortorder', 'id,videoid');
     }
 
     public function get_accountid() {
@@ -332,5 +362,189 @@ class activity {
             return groups_get_course_groupmode($this->course);
         }
         return NOGROUPS;
+    }
+
+    public function get_progress() {
+        global $DB, $USER;
+        $progress = (object)array(
+            'watch' => 0,
+            'learn' => 0,
+            'speak' => 0,
+        );
+        $table = 'englishcentral_attempts';
+        $params = array('ecid' => $this->id,
+                        'userid' => $USER->id);
+        if ($attempts = $DB->get_records($table, $params)) {
+            foreach ($attempts as $attempt) {
+                $progress->watch += $attempt->watchcomplete;
+                $progress->learn += $attempt->learncount;
+                $progress->speak += $attempt->speakcount;
+            }
+        }
+        return $progress;
+    }
+
+    public function update_progress($dialog) {
+        global $DB, $USER;
+
+        // extract/create $attempt
+        $table = 'englishcentral_attempts';
+        $params = array('ecid' => $this->id,
+                        'userid' => $USER->id,
+                        'videoid' => $dialog->dialogID);
+        if ($attempt = $DB->get_record($table, $params)) {
+            // $USER has attempted this video before
+        } else {
+            $attempt = (object)$params;
+            $attempt->timecreated = $this->time;
+        }
+
+        $progress = $this->extract_progress($dialog, $attempt);
+
+        foreach ($progress as $name => $value) {
+            $attempt->$name = $value;
+        }
+
+        if (empty($attempt->id)) {
+            $DB->insert_record($table, $attempt);
+        } else {
+            $DB->update_record($table, $attempt);
+        }
+
+        englishcentral_update_grades($this, $USER->id);
+    }
+
+    /**
+     * Format data about dialog activities returned from EC ReportCard api
+     * e.g. /rest/report/dialog/{dialogID}/progress
+     *
+     * @param array $dialog JSON data returned from EC REST call
+     * @param object $attempt record from "englishcentral_attempts"
+     * @return array of $progress data
+     */
+    public function extract_progress($dialog, $attempt) {
+
+        // initialize totals for goals
+        $progress = array(
+            'dialogID' => $dialog->dialogID,
+
+            'watchcomplete' => 0,
+            'watchtotal'    => 0,
+            'watchcount'    => 0,
+            'watchlineids'  => array(), // dialogLineID's of lines watched,
+
+            'learncomplete' => 0,
+            'learntotal'    => 0,
+            'learncount'    => 0,
+            'learnwordids'  => array(), // wordHeadID's of words learned,
+
+            'speakcomplete' => 0,
+            'speaktotal'    => 0,
+            'speakcount'    => 0,
+            'speaklineids'  => array(), // dialogLineID's of lines spoken,
+
+            'totalpoints'   => 0,
+
+            // this info is no longer available
+            'activetime'    => 0,
+            'totaltime'     => 0,
+            'sessionScore'  => 0,
+            'sessionGrade'  => '', // A-F
+        );
+
+        if (isset($dialog->hash)) {
+           $progress['hash'] = $dialog->hash;
+        }
+        if (isset($dialog->totalPoints)) {
+           $progress['totalpoints']  = $dialog->totalPoints;
+        }
+
+        // populate the $progress array with values earned hitherto
+        foreach (array('watchlineids', 'learnwordids', 'speaklineids') as $ids) {
+            if (isset($attempt->$ids) && $attempt->$ids) {
+                $progress[$ids] = explode(',', $attempt->$ids);
+                $progress[$ids] = array_fill_keys($progress[$ids], 1);
+            }
+        }
+
+
+        if (empty($dialog->activities)) {
+            return $progress;
+        }
+
+        foreach($dialog->activities as $activity) {
+
+            // activityType     : watchActivity / speakActivity
+            // activityID       : 208814
+            // activityTypeID   : (see below)
+            // activityPoints   : 10
+            // activityProgress : 1
+            // completed        : 1
+            // grade            : A (speakActivity only ?)
+
+            // extract DB fields
+            switch ($activity->activityTypeID) {
+
+                case \mod_englishcentral\auth::ACTIVITYTYPE_WATCHING: // =9
+                    $progress['watchcomplete'] = (empty($activity->completed) ? 0 : 1);
+                    foreach ($activity->watchedDialogLines as $line) {
+                        $progress['watchlineids'][$line->dialogLineID] = 1;
+                    }
+                    break;
+
+                case \mod_englishcentral\auth::ACTIVITYTYPE_LEARNING: // =10
+                    $progress['learncomplete'] = (empty($activity->completed) ? 0 : 1);
+                    foreach ($activity->learnedDialogLines as $line) {
+                        foreach($line->learnedWords as $word) {
+                            if ($word->completed) {
+                                $progress['learnwordids'][$word->wordHeadID] = 1;
+                            }
+                        }
+                    }
+                    break;
+
+                case \mod_englishcentral\auth::ACTIVITYTYPE_SPEAKING: // =11
+                    $progress['speakcomplete'] = (empty($activity->completed) ? 0 : 1);
+                    foreach ($activity->spokenDialogLines as $line) {
+                        $progress['speaklineids'][$line->dialogLineID] = 1;
+                    }
+                    break;
+            }
+        }
+
+        $progress['watchcount'] += count($progress['watchlineids']);
+        $progress['learncount'] += count($progress['learnwordids']);
+        $progress['speakcount'] += count($progress['speaklineids']);
+
+        $progress['watchlineids'] = implode(',', array_keys($progress['watchlineids']));
+        $progress['learnwordids'] = implode(',', array_keys($progress['learnwordids']));
+        $progress['speaklineids'] = implode(',', array_keys($progress['speaklineids']));
+
+        return $progress;
+    }
+
+    public function get_attempts_fields($addvideoid=true) {
+        $fields = 'watchcount,watchcomplete,'.
+                  'learncount,learncomplete,'.
+                  'speakcount,speakcomplete';
+        if ($addvideoid) {
+            $fields = "videoid,$fields";
+        }
+        return $fields;
+    }
+
+    public function get_attempts($videoid=0) {
+        global $DB, $USER;
+        $params = array('ecid' => $this->id,
+                        'userid' => $USER->id);
+        if ($videoid) {
+            $params['videoid'] = $videoid;
+        }
+        $fields = $this->get_attempts_fields();
+        if ($attempts = $DB->get_records('englishcentral_attempts', $params, 'id', $fields)) {
+            return $attempts;
+        } else {
+            return array();
+        }
     }
 }

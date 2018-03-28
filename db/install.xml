@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/englishcentral/db" VERSION="20180122" COMMENT="XMLDB file for Moodle mod/englishcentral"
+<XMLDB PATH="mod/englishcentral/db" VERSION="20180225" COMMENT="XMLDB file for Moodle mod/englishcentral"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -7,14 +7,14 @@
     <TABLE NAME="englishcentral" COMMENT="Default comment for englishcentral">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-        <FIELD NAME="course" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Course englishcentral activity belongs to"/>
-        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="name field for moodle instances"/>
-        <FIELD NAME="intro" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="General introduction of the englishcentral activity"/>
+        <FIELD NAME="course" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="ID of the Moodle course to which this EC activity belongs"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Name of this Moodle EC activity"/>
+        <FIELD NAME="intro" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Introduction to this Moodle EC activity"/>
         <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Format of the intro field"/>
-        <FIELD NAME="activityopen" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="activityclose" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="videoclose" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="videoopen" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="activityopen" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Open time/date for this Moodle EC activity"/>
+        <FIELD NAME="activityclose" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Close time/date for this Moodle EC activity"/>
+        <FIELD NAME="videoopen" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Open time/date for the videos in this Moodle EC activity"/>
+        <FIELD NAME="videoclose" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Close time/date for the videos in this Moodle EC activity"/>
         <FIELD NAME="watchgoal" TYPE="int" LENGTH="6" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="target number of videos to watch"/>
         <FIELD NAME="learngoal" TYPE="int" LENGTH="6" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="target number of words to learn"/>
         <FIELD NAME="speakgoal" TYPE="int" LENGTH="6" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="target number of lines to speak"/>
@@ -40,7 +40,7 @@
         <KEY NAME="engluser_user" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
-        <INDEX NAME="engluser_accountid" UNIQUE="true" FIELDS="accountid"/>
+        <INDEX NAME="engluser_accountid" UNIQUE="false" FIELDS="accountid"/>
       </INDEXES>
     </TABLE>
     <TABLE NAME="englishcentral_videos" COMMENT="map which videos are associated with which EC activities">
@@ -48,6 +48,8 @@
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="ecid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="videoid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="id of video on englishcentral.com"/>
+        <FIELD NAME="visible" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="flag to denote if this video is visible (1) or not (0)"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="6" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="the sortorder of this video within the current EC activity"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
@@ -55,6 +57,7 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="englvide_videoid" UNIQUE="false" FIELDS="videoid"/>
+        <INDEX NAME="englvide_sortorder" UNIQUE="true" FIELDS="ecid, sortorder"/>
       </INDEXES>
     </TABLE>
     <TABLE NAME="englishcentral_attempts" COMMENT="information about attempts at EC videos">
@@ -63,26 +66,33 @@
         <FIELD NAME="ecid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="videoid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="linestotal" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
-        <FIELD NAME="totalactivetime" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="watchedcomplete" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="activetime" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="datecompleted" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="linesrecorded" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="lineswatched" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="points" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="recordingcomplete" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="watchcomplete" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="watchtotal" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="number of watchable lines"/>
+        <FIELD NAME="watchcount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="watchlineids" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="comma-separated list of line ids"/>
+        <FIELD NAME="learncomplete" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="learntotal" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="number of learnable words"/>
+        <FIELD NAME="learncount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="number of words learned"/>
+        <FIELD NAME="learnwordids" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="learnwordids"/>
+        <FIELD NAME="speakcomplete" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="speaktotal" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="speakcount" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="speaklineids" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="comma-separated list of line ids"/>
+        <FIELD NAME="totalpoints" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="sessiongrade" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="sessionscore" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="status" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="activetime" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="totaltime" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timecompleted" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="status" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="englatte_ecid" TYPE="foreign" FIELDS="ecid" REFTABLE="englishcentral" REFFIELDS="id"/>
-        <KEY NAME="englatte_userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
       </KEYS>
       <INDEXES>
+        <INDEX NAME="englatte_ecid" UNIQUE="false" FIELDS="ecid"/>
+        <INDEX NAME="englatte_userid" UNIQUE="false" FIELDS="userid"/>
         <INDEX NAME="englatte_videoid" UNIQUE="false" FIELDS="videoid"/>
       </INDEXES>
     </TABLE>
@@ -99,10 +109,12 @@
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="englphs_ecid" TYPE="foreign" FIELDS="ecid" REFTABLE="englishcentral" REFFIELDS="id"/>
-        <KEY NAME="englphs_attemptid" TYPE="foreign" FIELDS="attemptid" REFTABLE="englishcentral_attempts" REFFIELDS="id"/>
-        <KEY NAME="englphs_userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
       </KEYS>
+      <INDEXES>
+        <INDEX NAME="englphs_ecid" UNIQUE="false" FIELDS="ecid"/>
+        <INDEX NAME="englphs_attemptid" UNIQUE="false" FIELDS="attemptid"/>
+        <INDEX NAME="englphs_userid" UNIQUE="false" FIELDS="userid"/>
+      </INDEXES>
     </TABLE>
   </TABLES>
 </XMLDB>

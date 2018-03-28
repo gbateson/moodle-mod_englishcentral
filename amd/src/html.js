@@ -27,17 +27,20 @@ define([], function() {
     /** @alias module:mod_englishcentral/html */
     var HTML = {};
 
+    // RegExp to clean non-alphanumeric chars from a string
+    HTML.nonalphanumeric = new RegExp("[^a-zA-Z0-9_-]+", "g");
+
     HTML.htmlescape = function(value) {
         value += ""; // convert to String
         return value.replace(new RegExp("&", "g"), "&amp;")
-                    .replace(new RegExp("'", "g"), "&apos;")
-                    .replace(new RegExp('"', "g"), "&quot;")
-                    .replace(new RegExp("<", "g"), "&lt;")
-                    .replace(new RegExp(">", "g"), "&gt;");
+            .replace(new RegExp("'", "g"), "&apos;")
+            .replace(new RegExp('"', "g"), "&quot;")
+            .replace(new RegExp("<", "g"), "&lt;")
+            .replace(new RegExp(">", "g"), "&gt;");
     };
 
     HTML.attribute = function(name, value) {
-        var attr = name.replace(new RegExp("^a-zA-Z0-9_-"), "g");
+        var attr = name.replace(HTML.nonalphanumeric, "");
         if (attr) {
             attr = " " + attr + '="' + HTML.htmlescape(value) + '"';
         }
@@ -70,26 +73,36 @@ define([], function() {
         return (HTML.starttag(tag, attr) + content + HTML.endtag(tag));
     };
 
-    HTML.input = function(name, type, attr) {
+    HTML.input = function(name, type, attr, id) {
         attr.type = type;
         attr.name = name;
-        attr.id = "id_" + name;
+        if (id) {
+            attr.id = id;
+        } else {
+            attr.id = "id_" + name;
+        }
         return HTML.emptytag("input", attr);
     };
 
     HTML.hidden = function(name, value) {
-        var attr = {"value" : (value || "")};
+        var attr = {
+            "value": (value || "")
+        };
         return HTML.input(name, "hidden", attr);
     };
 
     HTML.text = function(name, value, size) {
-        var attr = {"value" : (value || ""),
-                    "size" : (size || "15")};
+        var attr = {
+            "value": (value || ""),
+            "size": (size || "15")
+        };
         return HTML.input(name, "text", attr);
     };
 
     HTML.checkbox = function(name, checked) {
-        var attr = {"value" : "1"};
+        var attr = {
+            "value": "1"
+        };
         if (checked) {
             attr.checked = "checked";
         }
@@ -107,8 +120,10 @@ define([], function() {
     HTML.select = function(name, options, selected, attr) {
         var html = "";
         for (var value in options) {
-            var a = {"value" : value};
-            if (value==selected) {
+            var a = {
+                "value": value
+            };
+            if (value == selected) {
                 a["selected"] = "selected";
             }
             html += HTML.tag("option", options[value], a);
