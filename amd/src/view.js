@@ -289,6 +289,7 @@ define(["jquery", "jqueryui", "core/str", "mod_englishcentral/html"], function($
             "container": VIEW.playercontainer,
             "autoStart": $(completed).length,
             "interstitialsEnabled": true,
+            "activityPanelEnabled": false,
             "dialogId": dialogId,
             "learnMode": true,
             "speakMode": true,
