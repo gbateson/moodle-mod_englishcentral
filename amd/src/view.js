@@ -290,6 +290,7 @@ define(["jquery", "jqueryui", "core/str", "mod_englishcentral/html"], function($
             "autoStart": $(completed).length,
             "activityPanelEnabled": false,
             "interstitialsEnabled": true,
+            "activityPanelEnabled": false,
             "dialogId": dialogId,
             "learnMode": true,
             "speakMode": true,
